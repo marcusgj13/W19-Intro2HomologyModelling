@@ -1,0 +1,163 @@
+# Import all relevant libraries
+from pyrosetta import *
+from pyrosetta.rosetta import *
+from pyrosetta.rosetta.protocols.simple_moves import *
+from pyrosetta.teaching import *
+from pyrosetta.toolbox import *
+from pyrosetta.rosetta.protocols.minimization_packing import MinMover
+
+# Initialise pyrosetta
+pyrosetta.init()
+
+# Set up pose objects
+start = pose_from_pdb("1whz.pdb")
+test = Pose()
+test.assign("start")
+start.pdb_info().name("start")
+test.pdb_info().name("test")
+
+# Set up pymol mover
+pmm = PyMOLMover()
+pmm.apply(start)
+pmm.apply(test)
+observer = AddPyMOLObserver(test,True)
+
+# setting parameters for trial movers
+k_t = 1.0
+movemap = MoveMap()
+movemap.set_bb(True)
+n_moves = 1
+scorefxn = get_fa_scorefxn()
+
+# make modifying movers and mc object
+small_mover = SmallMover(movemap, k_t, n_moves)
+shear_mover = ShearMover(movemap, k_t, n_moves)
+mc = MonteCarlo(test,scorefxn,k_t)
+
+# make the trial movers and run them
+trial_moverS = TrialMover(small_mover,mc)  
+trial_moverSh = TrialMover(shear_mover,mc)
+trial_moverS.apply(test)
+trial_moverSh.apply(test)
+
+trial_moverS.acceptance_rate()
+trial_moverS.num_accepts()
+mc.show_state()
+
+# Setting up a sequence mover
+min_mover = MinMover()
+min_mover.score_function(scorefxn)
+min_mover.movemap(movemap)
+seq_mover = SequenceMover()		  
+seq_mover.add_mover(small_mover) 	   
+seq_mover.add_mover(shear_mover)           
+seq_mover.add_mover(min_mover)		   
+trial_moverSeq = TrialMover(seq_mover,mc)  
+trial_moverSeq.apply(test)
+
+# Using fragment movers
+from pyrosetta.rosetta.core.fragment import *
+fragset3 = ConstantLengthFragSet(3)
+fragset3.read_fragment_file("aat000_03_05.200_v1_3")
+mover_3mer = ClassicFragmentMover(fragset3, movemap)
+fragset9 = ConstantLengthFragSet(9)
+fragset9.read_fragment_file("aat000_09_05.200_v1_3")
+mover_9mer = ClassicFragmentMover(fragset9, movemap)
+mover_3mer.apply(test)
+pmm.apply(test)
+mover_9mer.apply(test)
+pmm.apply(test)
+mc.boltzmann(test)
+
+# Fold trees and loops
+test_pose = pose_from_pdb("test_in.pdb")
+print(test_pose)
+get_secstruct(test_pose)
+pmm.apply(test_pose)
+ft = FoldTree
+ft.add_edge(1,13,-1)
+ft.add_edge(13,19,-1)
+ft.add_edge(13,26,1)
+ft.add_edge(26,20,-1)
+ft.add_edge(26,116,-1)
+print(ft)
+ft.check_fold_tree()
+
+pose.fold_tree(ft)
+pmm.send_foldtree(test_pose,ft)
+ft.clear()
+ft.simple_tree(116)
+ft.new_jump(76, 85, 80)
+
+from pyrosetta.rosetta.protocols.loops.loop_closure.ccd import *
+loop1 = Loop(15, 24, 19)
+add_single_cutpoint_variant(test_pose, loop1)
+ccd = CCDLoopClosureMover(loop1, movemap)
+ccd.apply(test_pose)
+pmm.apply(test_pose)
+
+
+
+# Packing tasks
+pose4packing = pose_from_pdb("LowestEnergyModel1.pdb")
+print(scorefxn(pose4packing))
+scorefxn.show(pose4packing)
+
+# set up the packer task
+task_pack = standard_packer_task(pose4packing)
+task_pack.restrict_to_repacking()
+print(task_pack)
+pmm.apply(pose4packing)
+observer = AddPyMOLObserver(pose4packing,True)
+pack_mover = PackRotamersMover(scorefxn, task_pack)
+pack_mover.apply(pose4packing)    
+scorefxn(pose4packing)
+scorefxn.show(pose4packing)
+
+# Improving our model
+
+homology_pose = pose_from_pdb("P51634_model.pdb")
+scorefxn(homology_pose)
+scorefxn.show(homology_pose)
+pmm.apply(homology_pose)
+pmm.send_energy(homology_pose)
+
+# Start with repacking
+repacked_model = Pose()
+repacked_model.assign(homology_pose)
+task_pack = standard_packer_task(repacked_model)
+task_pack.restrict_to_repacking()
+pack_mover = PackRotamersMover(scorefxn, task_pack)
+pack_mover.apply(repacked_model)
+scorefxn.show(repacked_model)
+pmm.apply(repacked_model)
+pmm.send_energy(repacked_model)
+
+# Look at the energy per residue
+
+for i in range(1,repacked_model.total_residue()+1):
+	print('The score for residue ',
+	i, 'is: '
+	,repacked_model.energies().residue_total_energy(i),
+	'\n')
+
+# New packing task and movemap
+task_pack = standard_packer_task(repacked_model)
+task_pack.temporarily_fix_everything()
+task_pack.temporarily_set_pack_residue(340, True)
+task_pack.temporarily_set_pack_residue(303, True)
+print(task_pack)
+pack_mover = PackRotamersMover(scorefxn, task_pack)
+pack_mover.apply(repacked_model)
+
+min_mover_SC = MinMover()
+min_mover_SC.min_type("dfpmin")
+movemap_SC = MoveMap()
+movemap_SC.set_chi(True)
+min_mover_SC.score_function(scorefxn)
+min_mover.apply(repacked_model)
+scorefxn.show(repacked_model)
+repacked_model.dump_pdb("repacked_homology_model.pdb")
+pmm.apply(repacked_model)
+pmm.send_energy(repacked_model)
+

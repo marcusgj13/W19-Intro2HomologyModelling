@@ -1,0 +1,60 @@
+from pyrosetta import *
+init()
+from pyrosetta import PyMOLMover
+pmm = PyMOLMover()				# To allow sending poses to pymol
+
+
+from pyrosetta.toolbox import *			# Basic set up of the pyrosetta
+						# environment
+cleanATOM("1hzw.pdb")
+
+test = pose_from_pdb("1hzw.clean.pdb")  	# Need to clean to remove extra information
+						# in the pdb file before creating a pose
+print test
+pmm.apply(test)					# Show pose contents and send to pymol
+
+print test.residue(10)
+print test.residue(10).name()			# Print information about a specific residue
+
+print test.phi(10)
+print test.psi(10)
+print test.chi(2,10)
+
+r10N = AtomID(3, 10)
+r10CA = AtomID(2, 10)
+r10C = AtomID(3, 10)				# Get information about angles and bond lengths 
+						# of residue 10
+
+test.conformation().bond_length(r10N,r10CA)
+
+hbond_set = get_hbonds(test)
+hbond_set.show(test)			
+	
+pmm.send_hbonds(test)				# Get information about hydrogen bonding within
+						# pose and display in pymol
+
+scorefxn = get_fa_scorefxn()
+scorefxn.show()
+scorefxn.show(test)				# Load score function and chack poses score
+
+from rosetta.protocols.relax import *
+relax = ClassicRelax()
+relax.set_scorefxn(scorefxn)
+relax.apply(test)				# Load and run the classical relax
+scorefxn.show(test)
+
+test.dump_pdb("1ejg_relaxed.pdb")		# Write the pose to a pdb file
+
+test2 = pose_from_pdb("1ejg.clean.pdb")
+
+test_2.set_phi(10, 60)   
+print scorefxn(test_2)
+
+test_2.set_phi(10, -63.0344534895)		# Modify the phi angle and dump to file
+
+realax.apply(test_2)
+test_2.dump_pdb()
+
+
+
+
