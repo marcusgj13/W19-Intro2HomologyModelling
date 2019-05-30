@@ -45,10 +45,10 @@ def make_Fragmovers(movemap):
     # Load frag sets and make movers
 
     fragset3 = ConstantLengthFragSet(3)
-    fragset3.read_fragment_file("aat000_03_05.200_v1_3")
+    fragset3.read_fragment_file("../textFiles/aat000_03_05.200_v1_3")
     mover_3mer = ClassicFragmentMover(fragset3, movemap)
     fragset9 = ConstantLengthFragSet(9)
-    fragset9.read_fragment_file("aat000_09_05.200_v1_3")
+    fragset9.read_fragment_file("../textFiles/aat000_09_05.200_v1_3")
     mover_9mer = ClassicFragmentMover(fragset9, movemap)
 
     return mover_3mer, mover_9mer
@@ -95,7 +95,7 @@ def monteCarloFold(Input_P, nIterations, trial):
         mover_9mer.apply(P)
         min_mover.apply(P)
         mover_3mer.apply(P)
-	min_mover.apply(P)
+        min_mover.apply(P)
 
         mc.boltzmann(P)
         mc.show_scores()

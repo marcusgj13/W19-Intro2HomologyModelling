@@ -14,13 +14,13 @@ score.set_weight(hbond_sr_bb, 1.0)
 score.set_weight(hbond_bb_sc, 1.0)
 score.set_weight(hbond_sc, 1.0)
 
-#for i in range(1, p.total_residue() + 1):
-#    p.set_phi(i, -139)
-#    p.set_psi(i, 135)
+for i in range(1, p.total_residue() + 1):
+    p.set_phi(i, -139)
+    p.set_psi(i, 135)
 
 print("Score is " + str(score(p)))
-relax = ClassicRelax()
-new_score = get_fa_scorefxn()
-relax.set_scorefxn(new_score)
-relax.apply(p)
+#relax = ClassicRelax()
+#new_score = get_fa_scorefxn()
+#relax.set_scorefxn(new_score)
+#relax.apply(p)
 p.dump_pdb("ideal_sheet.pdb")
